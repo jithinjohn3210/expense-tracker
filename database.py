@@ -3,12 +3,18 @@ from datetime import datetime
 
 class Database:
     def __init__(self, db_name="expenses.db"):
-        self.conn = sqlite3.connect(db_name)
-        self.cursor = self.conn.cursor()
+        self.db_name = db_name
         self.create_table()
 
+    def get_connection(self):
+        conn = sqlite3.connect(self.db_name)
+        conn.row_factory = sqlite3.Row
+        return conn
+
     def create_table(self):
-        self.cursor.execute('''
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS expenses (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 date TEXT NOT NULL,
@@ -17,44 +23,62 @@ class Database:
                 description TEXT
             )
         ''')
-        self.conn.commit()
+        conn.commit()
+        conn.close()
 
     def add_expense(self, amount, category, description=""):
+        conn = self.get_connection()
+        cursor = conn.cursor()
         date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self.cursor.execute('''
+        cursor.execute('''
             INSERT INTO expenses (date, amount, category, description)
             VALUES (?, ?, ?, ?)
         ''', (date, amount, category, description))
-        self.conn.commit()
+        conn.commit()
+        conn.close()
         print("✅ Expense added successfully!")
 
     def view_all_expenses(self):
-        self.cursor.execute("SELECT * FROM expenses ORDER BY date DESC")
-        rows = self.cursor.fetchall()
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM expenses ORDER BY date DESC")
+        rows = cursor.fetchall()
+        conn.close()
         return rows
 
     def view_by_category(self, category):
-        self.cursor.execute("SELECT * FROM expenses WHERE category = ? ORDER BY date DESC", (category,))
-        return self.cursor.fetchall()
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM expenses WHERE category = ? ORDER BY date DESC", (category,))
+        rows = cursor.fetchall()
+        conn.close()
+        return rows
 
     def get_total_spent(self):
-        self.cursor.execute("SELECT SUM(amount) FROM expenses")
-        result = self.cursor.fetchone()[0]
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT SUM(amount) FROM expenses")
+        result = cursor.fetchone()[0]
+        conn.close()
         return result if result else 0
 
     def get_total_by_category(self):
-        self.cursor.execute('''
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
             SELECT category, SUM(amount) as total
             FROM expenses
             GROUP BY category
             ORDER BY total DESC
         ''')
-        return self.cursor.fetchall()
+        rows = cursor.fetchall()
+        conn.close()
+        return rows
 
     def delete_expense(self, expense_id):
-        self.cursor.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
-        self.conn.commit()
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
+        conn.commit()
+        conn.close()
         print("🗑️ Expense deleted successfully!")
-
-    def close(self):
-        self.conn.close()
